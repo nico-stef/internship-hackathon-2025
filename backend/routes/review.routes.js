@@ -1,6 +1,7 @@
 import express from "express";
 import reviewController from "../controllers/review.controller.js";
 import reviewPRController from "../controllers/reviewPending.controller.js";
+import { addCommentController } from "../controllers/addCommentController.js";
 
 const router = express.Router();
 
@@ -8,5 +9,7 @@ const router = express.Router();
 router.post("/review-url", reviewController);
 
 router.post("/review-pending", reviewPRController);
+
+router.post("/add-comment", addCommentController);
 
 export default router;

@@ -6,16 +6,15 @@ export default function GitHubPRReview() {
     const [repoUrl, setRepoUrl] = useState("");
     const [prNumber, setPrNumber] = useState("");
     const [githubToken, setGithubToken] = useState("");
-    const [review, setReview] = useState("");
+    const [review, setReview] = useState([]);
     const [loading, setLoading] = useState(false);
-    const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!repoUrl || !prNumber || !githubToken) return;
 
         setLoading(true);
-        setReview("");
+        setReview([]);
 
         try {
             const res = await fetch("http://localhost:3000/review-pending", {
@@ -25,83 +24,39 @@ export default function GitHubPRReview() {
             });
 
             const data = await res.json();
-
-            console.log("Full response from backend:", data);
-
-            // Folosește reviewFeedback dacă backend-ul îl returnează
-            setReview(data.reviewFeedback || "No review returned.");
+            // Split review pe linii sau fișiere
+            const feedbackLines = data.reviewFeedback.split("\n\n");
+            setReview(feedbackLines);
         } catch (err) {
             console.error(err);
-            setReview("Error fetching PR review.");
+            setReview(["Error fetching PR review."]);
         } finally {
             setLoading(false);
         }
     };
 
+    const handleAddComment = async (comment) => {
+        try {
+            await fetch("http://localhost:3000/add-comment", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ repoUrl, prNumber, githubToken, comment }),
+            });
+            alert("Comment added to PR!");
+        } catch (err) {
+            console.error(err);
+            alert("Failed to add comment.");
+        }
+    };
+
     return (
-        <div
-            style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                padding: "50px 20px",
-                fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-            }}
-        >
-            <h1
-                style={{
-                    fontSize: "3rem",
-                    fontWeight: "700",
-                    marginBottom: "40px",
-                    textAlign: "center",
-                }}
-            >
-                GitHub Pull Request Critic
-            </h1>
-            <p
-                style={{
-                    fontSize: "1rem",
-                    color: "#555",
-                    marginBottom: "40px",
-                    textAlign: "center",
-                }}
-            >
-                Let's see what your teammates have been working on!
-            </p>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "50px 20px" }}>
+            <h1>GitHub Pull Request Critic</h1>
 
-            <form
-                onSubmit={handleSubmit}
-                style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "15px",
-                    width: "100%",
-                    maxWidth: "500px",
-                    marginBottom: "30px",
-                }}
-            >
-                <input
-                    type="text"
-                    placeholder="Enter GitHub repo URL"
-                    value={repoUrl}
-                    onChange={(e) => setRepoUrl(e.target.value)}
-                    style={inputStyle}
-                />
-                <input
-                    type="number"
-                    placeholder="Enter PR number"
-                    value={prNumber}
-                    onChange={(e) => setPrNumber(e.target.value)}
-                    style={inputStyle}
-                />
-                <input
-                    type="password"
-                    placeholder="Enter GitHub token"
-                    value={githubToken}
-                    onChange={(e) => setGithubToken(e.target.value)}
-                    style={inputStyle}
-                />
-
+            <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "15px", width: "100%", maxWidth: "500px" }}>
+                <input type="text" placeholder="Repo URL" value={repoUrl} onChange={(e) => setRepoUrl(e.target.value)} style={inputStyle} />
+                <input type="number" placeholder="PR number" value={prNumber} onChange={(e) => setPrNumber(e.target.value)} style={inputStyle} />
+                <input type="password" placeholder="GitHub token" value={githubToken} onChange={(e) => setGithubToken(e.target.value)} style={inputStyle} />
                 <button
                     type="submit" // ← important!
                     style={{
@@ -120,25 +75,31 @@ export default function GitHubPRReview() {
                 >
                     Review PR
                 </button>
-
-
             </form>
 
             {loading && <p>Loading review...</p>}
 
-            {review && (
+            {review.length > 0 && (
                 <div style={reviewBoxStyle}>
                     <h3>PR Review:</h3>
-                    <ReactMarkdown
-                        children={review}
-                        components={{
-                            code: ({ node, inline, className, children, ...props }) => (
-                                <pre style={{ backgroundColor: "#f5f5f5", padding: "10px", borderRadius: "6px", overflowX: "auto" }}>
-                                    <code>{children}</code>
-                                </pre>
-                            )
-                        }}
-                    />
+                    {review.map((item, idx) => (
+                        <div key={idx} style={{ marginBottom: "15px" }}>
+                            <ReactMarkdown
+                                children={item}
+                                components={{
+                                    code: ({ node, inline, className, children, ...props }) => (
+                                        <pre style={{ backgroundColor: "#f5f5f5", padding: "10px", borderRadius: "6px", overflowX: "auto" }}>
+                                            <code>{children}</code>
+                                        </pre>
+                                    )
+                                }}
+                            />
+                            <button onClick={() => handleAddComment(item)} style={{ marginTop: "5px" }}>
+                                Add Comment to PR
+                            </button>
+
+                        </div>
+                    ))}
                 </div>
             )}
 
@@ -147,31 +108,5 @@ export default function GitHubPRReview() {
 }
 
 // Styling
-const inputStyle = {
-    padding: "12px 15px",
-    fontSize: "16px",
-    borderRadius: "8px",
-    border: "1px solid #ccc",
-    boxShadow: "inset 0 1px 3px rgba(0,0,0,0.1)",
-};
-
-const buttonStyle = {
-    padding: "12px 25px",
-    fontSize: "16px",
-    borderRadius: "8px",
-    border: "none",
-    cursor: "pointer",
-    backgroundColor: "#007bff",
-    color: "#fff",
-    fontWeight: "bold",
-};
-
-const reviewBoxStyle = {
-    width: "100%",
-    maxWidth: "700px",
-    padding: "25px",
-    borderRadius: "12px",
-    backgroundColor: "#fff",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-    border: "1px solid #e0e0e0",
-};
+const inputStyle = { padding: "12px", fontSize: "16px", borderRadius: "6px", border: "1px solid #ccc" };
+const reviewBoxStyle = { width: "100%", maxWidth: "700px", padding: "20px", marginTop: "15px", borderRadius: "8px", backgroundColor: "#f9f9f9", border: "1px solid #ddd" };
