@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import Login from "./pages/Login";
 import GitHubReview from "./pages/GitHubReview.jsx";
+import GitHubPRReview from "./pages/GitHubPRReview.jsx";
 import { useState } from "react";
 
 // Header component cu logout
@@ -41,8 +42,8 @@ function Header({ setIsLoggedIn }) {
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
-        {/* Buton navigare către GitHubReview */}
         <h2 style={{ margin: 0, fontWeight: "bold" }}>Code Critic</h2>
+
         <button
           onClick={() => navigate("/")}
           style={{
@@ -51,17 +52,36 @@ function Header({ setIsLoggedIn }) {
             borderRadius: "5px",
             border: "none",
             cursor: "pointer",
-            backgroundColor: "#000", // buton negru
-            color: "#fff",           // text alb
+            backgroundColor: "#000",
+            color: "#fff",
             fontWeight: "bold",
             transition: "all 0.3s",
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#333")} // hover
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#000")} // normal
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#333")}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#000")}
         >
-          Dashboard
+          Review whole repo
         </button>
 
+        {/* Buton pentru Review PR */}
+        <button
+          style={{
+            padding: "8px 15px",
+            fontSize: "14px",
+            borderRadius: "5px",
+            border: "none",
+            cursor: "pointer",
+            backgroundColor: "#000",
+            color: "#fff",
+            fontWeight: "bold",
+            transition: "all 0.3s",
+          }}
+          onClick={() => navigate("/review-pr")}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#333")}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#000")}
+        >
+          Review PR
+        </button>
       </div>
 
       <button
@@ -84,7 +104,6 @@ function Header({ setIsLoggedIn }) {
       </button>
     </header>
 
-
   );
 }
 
@@ -100,6 +119,23 @@ function App() {
             isLoggedIn ? <Navigate to="/" /> : <Login setIsLoggedIn={setIsLoggedIn} />
           }
         />
+        <Route
+          path="/review-pr"
+          element={
+            isLoggedIn ? (
+              <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+                <Header setIsLoggedIn={setIsLoggedIn} />
+                <div style={{ flex: 1 }}>
+                  <GitHubPRReview />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+
+
         <Route
           path="/"
           element={

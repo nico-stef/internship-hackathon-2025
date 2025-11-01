@@ -2,32 +2,28 @@ import simpleGit from "simple-git";
 import fs from "fs";
 import path from "path";
 import os from "os";
-import fetch from "node-fetch"; // doar dacă vrei să chemi LLM după
-import { Octokit } from "@octokit/rest"; // npm i @octokit/rest
+import { Octokit } from "@octokit/rest";
+import reviewService from "../services/review.service.js"; // import serviciul tău LLM
 
 const reviewPRController = async (req, res) => {
     try {
         const { repoUrl, prNumber, githubToken } = req.body;
 
-        if (!repoUrl) {
-            return res.status(400).json({ error: "Trebuie să trimiți un repoUrl!" });
-        }
-        if (!prNumber) {
-            return res.status(400).json({ error: "Trebuie să trimiți prNumber!" });
-        }
-        if (!githubToken) {
-            return res.status(400).json({ error: "Trebuie să trimiți githubToken!" });
-        }
+        const prNumberInt = Number(prNumber);
+
+        console.log("🟢 Received data from frontend:", { repoUrl, prNumber, githubToken });
+
+        if (!repoUrl) return res.status(400).json({ error: "Trebuie să trimiți un repoUrl!" });
+        if (!prNumber) return res.status(400).json({ error: "Trebuie să trimiți prNumber!" });
+        if (!githubToken) return res.status(400).json({ error: "Trebuie să trimiți githubToken!" });
 
         console.log(`\n🔍 Fetching PR #${prNumber} from repo: ${repoUrl}`);
 
         // Extragem owner și repo din URL
         const match = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)(\.git)?$/);
         if (!match) throw new Error("URL repo invalid");
-
         const owner = match[1];
         const repoName = match[2];
-
 
         // GitHub API client
         const octokit = new Octokit({ auth: githubToken });
@@ -36,12 +32,11 @@ const reviewPRController = async (req, res) => {
         const { data: pr } = await octokit.pulls.get({
             owner,
             repo: repoName,
-            pull_number: prNumber
+            pull_number: prNumberInt
         });
 
         const sourceBranch = pr.head.ref;
         const targetBranch = pr.base.ref;
-
         console.log(`PR #${prNumber}: ${sourceBranch} → ${targetBranch}`);
 
         // Creăm folder temporar
@@ -76,30 +71,32 @@ const reviewPRController = async (req, res) => {
         console.log("📝 Modified files:");
         changedFiles.forEach(f => console.log("  -", f));
 
-        // Citește și afișează codul modificat
-        console.log("\n=== CODE CHANGES EXTRACTED ===");
+        // Citește codul modificat și combină-l
         let combinedDiff = "";
         for (const file of changedFiles) {
             const fullPath = path.join(tmpDir, file);
             if (fs.existsSync(fullPath)) {
                 const code = fs.readFileSync(fullPath, "utf8");
-                console.log(`\n// File: ${file}\n`);
-                console.log(code);
                 combinedDiff += `\n// File: ${file}\n${code}`;
             }
         }
-        console.log("\n=== END CODE CHANGES ===");
 
+        // Trimitem codul la LLM pentru review
+        console.log("🚀 Sending code to LLM for review...");
+        const reviewFeedback = await reviewService(combinedDiff);
+
+        // Ștergem folderul temporar
         fs.rmSync(tmpDir, { recursive: true, force: true });
 
-        // Returnăm JSON
+        // Returnăm JSON cu fișierele și review-ul LLM
         res.json({
             repoUrl,
             prNumber,
             sourceBranch,
             targetBranch,
             changedFiles,
-            totalFiles: changedFiles.length
+            totalFiles: changedFiles.length,
+            reviewFeedback
         });
 
     } catch (err) {

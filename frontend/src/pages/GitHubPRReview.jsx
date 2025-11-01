@@ -1,34 +1,38 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 
-export default function GitHubReview() {
+export default function GitHubPRReview() {
     const [repoUrl, setRepoUrl] = useState("");
+    const [prNumber, setPrNumber] = useState("");
+    const [githubToken, setGithubToken] = useState("");
     const [review, setReview] = useState("");
     const [loading, setLoading] = useState(false);
+    const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!repoUrl) return;
+        if (!repoUrl || !prNumber || !githubToken) return;
 
         setLoading(true);
         setReview("");
 
         try {
-            const res = await fetch("http://localhost:3000/review-url", {
+            const res = await fetch("http://localhost:3000/review-pending", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ repoUrl }),
+                body: JSON.stringify({ repoUrl, prNumber, githubToken }),
             });
 
             const data = await res.json();
 
-            console.log("Review for repo:", data.repoUrl);
-            console.log("Generated review:\n", data.review);
+            console.log("Full response from backend:", data);
 
-            setReview(data.review);
+            // Folosește reviewFeedback dacă backend-ul îl returnează
+            setReview(data.reviewFeedback || "No review returned.");
         } catch (err) {
             console.error(err);
-            setReview("Error fetching review.");
+            setReview("Error fetching PR review.");
         } finally {
             setLoading(false);
         }
@@ -50,19 +54,29 @@ export default function GitHubReview() {
                     fontWeight: "700",
                     marginBottom: "40px",
                     textAlign: "center",
-                    textShadow: "1px 1px 3px rgba(0,0,0,0.1)",
                 }}
             >
-                GitHub repository Critic
+                GitHub Pull Request Critic
             </h1>
+            <p
+                style={{
+                    fontSize: "1rem",
+                    color: "#555",
+                    marginBottom: "40px",
+                    textAlign: "center",
+                }}
+            >
+                Let's see what your teammates have been working on!
+            </p>
 
             <form
                 onSubmit={handleSubmit}
                 style={{
                     display: "flex",
-                    gap: "10px",
-                    flexWrap: "wrap",
-                    justifyContent: "center",
+                    flexDirection: "column",
+                    gap: "15px",
+                    width: "100%",
+                    maxWidth: "500px",
                     marginBottom: "30px",
                 }}
             >
@@ -71,19 +85,25 @@ export default function GitHubReview() {
                     placeholder="Enter GitHub repo URL"
                     value={repoUrl}
                     onChange={(e) => setRepoUrl(e.target.value)}
-                    style={{
-                        width: "400px",
-                        maxWidth: "100%",
-                        padding: "12px 15px",
-                        fontSize: "16px",
-                        borderRadius: "8px",
-                        border: "1px solid #ccc",
-                        boxShadow: "inset 0 1px 3px rgba(0,0,0,0.1)",
-                        transition: "border-color 0.3s",
-                    }}
+                    style={inputStyle}
                 />
+                <input
+                    type="number"
+                    placeholder="Enter PR number"
+                    value={prNumber}
+                    onChange={(e) => setPrNumber(e.target.value)}
+                    style={inputStyle}
+                />
+                <input
+                    type="password"
+                    placeholder="Enter GitHub token"
+                    value={githubToken}
+                    onChange={(e) => setGithubToken(e.target.value)}
+                    style={inputStyle}
+                />
+
                 <button
-                    type="submit"
+                    type="submit" // ← important!
                     style={{
                         padding: "12px 25px",
                         fontSize: "16px",
@@ -98,15 +118,13 @@ export default function GitHubReview() {
                     onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#333")}
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#000")}
                 >
-                    Review
+                    Review PR
                 </button>
+
+
             </form>
 
-            {loading && (
-                <p style={{ fontSize: "16px", color: "#555", marginBottom: "20px" }}>
-                    Loading review...
-                </p>
-            )}
+            {loading && <p>Loading review...</p>}
 
             {review && (
                 <div style={reviewBoxStyle}>
@@ -123,6 +141,37 @@ export default function GitHubReview() {
                     />
                 </div>
             )}
+
         </div>
     );
 }
+
+// Styling
+const inputStyle = {
+    padding: "12px 15px",
+    fontSize: "16px",
+    borderRadius: "8px",
+    border: "1px solid #ccc",
+    boxShadow: "inset 0 1px 3px rgba(0,0,0,0.1)",
+};
+
+const buttonStyle = {
+    padding: "12px 25px",
+    fontSize: "16px",
+    borderRadius: "8px",
+    border: "none",
+    cursor: "pointer",
+    backgroundColor: "#007bff",
+    color: "#fff",
+    fontWeight: "bold",
+};
+
+const reviewBoxStyle = {
+    width: "100%",
+    maxWidth: "700px",
+    padding: "25px",
+    borderRadius: "12px",
+    backgroundColor: "#fff",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+    border: "1px solid #e0e0e0",
+};
